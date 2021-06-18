@@ -80,7 +80,8 @@ program energyprogram
   !! Coordinates arrays
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  real(8), dimension(:), allocatable :: x, y, pc_cart, pc_pol, pc_orig, pc_init
+  real(8), dimension(:), allocatable :: x, y, pc_cart, pc_pol, pc_orig
+  real(8), dimension(:,:), allocatable ::  pc_init
   real(8), dimension(:), allocatable :: lx, ly, lc_cart, lc_pol
 
 
@@ -197,7 +198,7 @@ program energyprogram
   !! Allocate arrays
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  allocate( pc_cart(dimn), pc_pol(dimn), pc_orig(dimn), pc_init(dimn) )
+  allocate( pc_cart(dimn), pc_pol(dimn), pc_orig(dimn), pc_init(nligand,dimn) )
   allocate( lc_cart(2*nbind), lc_pol(2*nbind) )
 
   allocate( x(namino), y(namino) )
@@ -259,8 +260,8 @@ program energyprogram
   !! reading the initial guess of the minimum-energy
   !! protein configuration
   open(unit = 12, file = 'inputs/prot_xy_init.dat')
-  do i = 1, namino
-    read(12, *) pc_init(2*i-1:2*i)
+  do i = 1, nligand
+    read(12, *) pc_init(i,:)
   enddo
   close(12)
 
@@ -278,7 +279,7 @@ program energyprogram
         endif
       enddo
   enddo
-  close(22)
+  close(13)
 
   !! Convert ligand angles to positions
 
@@ -305,8 +306,7 @@ program energyprogram
   enddo
 
   open(unit=20, file = 'inputs/prot_adjacency.dat')
-
-  do k=1,plinks
+  do k = 1, plinks
      read(20,*) plinks1(k), plinks2(k)
 
      if (plinks1(k) > namino .or. plinks2(k) > namino &
@@ -321,22 +321,22 @@ program energyprogram
 !       stop
      endif
 
-     i1=plinks1(k)
-     i2=plinks2(k)
-     npartners(i1)=npartners(i1)+1
-     npartners(i2)=npartners(i2)+1
+     i1 = plinks1(k)
+     i2 = plinks2(k)
+     npartners(i1) = npartners(i1) + 1
+     npartners(i2) = npartners(i2) + 1
 
      if (npartners(i1) > maxneighbors .or. npartners(i2) > maxneighbors) then
         print *, "too many neighbors"
         stop 
      endif
 
-     partners(i1,npartners(i1))=i2
-     partners(i2,npartners(i2))=i1
-     partners2linknumber(i1,i2)=k
-     partners2linknumber(i2,i1)=k
-
+     partners(i1,npartners(i1)) = i2
+     partners(i2,npartners(i2)) = i1
+     partners2linknumber(i1,i2) = k
+     partners2linknumber(i2,i1) = k
   enddo
+  close(20)
 
   !! Set the equilibrium length based on the original coordinates
   do i=1, plinks
@@ -348,8 +348,7 @@ program energyprogram
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !! Read all protein sequences 
 
-  open(unit = 23, file = 'inputs/prot_seq.dat') !! these are the generations
-
+  open(unit=23, file = 'inputs/prot_seq.dat') !! these are the generations
   do i = 1, nproteins    !! the loop over all proteins
      read(23,*) amino_list(i,:)  !! read the mutation
      do j = 1, naa_color
@@ -414,7 +413,7 @@ program energyprogram
 
 
         !! initialize protein coordinates
-        pc_cart = pc_init
+        pc_cart = pc_init(curr_lig,:)
 
         do counter = 1, kstep
 
@@ -442,8 +441,8 @@ program energyprogram
           call lxy2polar(lc_cart, x0, y0, angles(curr_lig), lc_pol)
 
 
-          call totalenergy(pc_pol, f)
-          energy = f
+!         call totalenergy(pc_pol, f)
+!         energy = f
 
 
           !!    comments from the gradient people
@@ -452,7 +451,7 @@ program energyprogram
           !     We specify the tolerances in the stopping criteria.
 
 
-          !     We specify the dimension n of the sample problem and the number
+!         !     We specify the dimension n of the sample problem and the number
           !     m of limited memory corrections stored.  (n and m should not
           !     exceed the limits nmax and mmax respectively.)
 
@@ -495,9 +494,10 @@ program energyprogram
 
           if (task(1:2) .eq. 'FG') then
 
+             call totalenergy(pc_pol, f)
              call  ligandenergy(pc_pol, ligands)
 
-             do i=1 , namino
+             do i = 1, namino
                 do k = 1, npartners(i)
                    j = partners(i,k)
                    !! |r1-r2| = ri^2 + r2^2 - 2r1*r2*cos(t1-t2)
@@ -516,21 +516,21 @@ program energyprogram
 
              !! we only compute the energy change for the affected links
              !! in "direction" j
-             do j=1,dimn
-                i=int((j+1)/2)
-                pc_pol(j)=pc_pol(j)+epsilon
-                deltaenergy=0
-                do k=1,npartners(i)
-                   jj=partners(i,k)
+             do j=1 , dimn
+                i = int((j + 1) / 2)
+                pc_pol(j) = pc_pol(j) + epsilon
+                deltaenergy = 0
+                do k = 1, npartners(i)
+                   jj = partners(i,k)
                    !! |r1-r2| = ri^2 + r2^2 - 2r1*r2*cos(t1-t2)
-                   deltaenergy=deltaenergy &
+                   deltaenergy = deltaenergy &
                         +(sqrt(pc_pol(2*i-1)**2 + pc_pol(2*jj-1)**2 - pc_pol(2*i-1)*pc_pol(2*jj-1)*&
                         &2.0*cos(pc_pol(2*i) - pc_pol(2*jj))) &
                         &-length(partners2linknumber(i,jj)))**2 * &
                         strength(partners2linknumber(i,jj)) - energyold(i,k)
                 enddo
                 call ligandenergy(pc_pol, newligands)
-                derivative(j)=(deltaenergy + newligands - ligands)/epsilon
+                derivative(j) = (deltaenergy + newligands - ligands)/epsilon
                 pc_pol(j) = pc_pol(j) - epsilon
              enddo
 
@@ -560,10 +560,17 @@ program energyprogram
           !! convert polar back to cartesian coordinate
           call aapolar2xy(pc_pol, x0, y0, angles(curr_lig), pc_cart)
 
-           write(45,'(i7,i4,x,6(f6.3,x),x,16(i1),3(e18.10,x),26(f6.3,x))') &
-               curr_prot,curr_lig,lc_cart,amino_strength,&
-               &energy,def_energy,&
-               &chem_energy,pc_cart
+          !! Calculate energy from initial guess
+          call aaxy2polar(pc_init(curr_lig,:), x0, y0, angles(curr_lig), pc_pol)
+          call totalenergy(pc_pol, f)
+
+          !! **redundant** return to the final pc_pol, just in case I forget about this
+          call aaxy2polar(pc_cart, x0, y0, angles(curr_lig), pc_pol)
+
+
+           write(45,'(i7,i4,x,6(f6.3,x),x,16(i1),4(e18.10,x),26(f6.3,x))') &
+               curr_prot, curr_lig, lc_cart, amino_strength,&
+               &energy, def_energy, chem_energy, f, pc_cart
 
 
           !! Finished one protein-ligand combination

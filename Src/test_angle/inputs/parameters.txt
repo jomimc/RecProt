@@ -9,11 +9,11 @@
 # Ligand size ::  nbind
 3
 # Elastic energy :: ks  ::  energy constant for stiff springs
-100
+10
 # Elastic energy :: kw  ::  energy constant for medium springs
 10
 # Elastic energy :: kww  ::  energy constant for weak springs
-1
+10
 # Elastic energy :: kstep  ::  number of iterations using different spring constants
 1
 # Elastic energy :: kmod  :: scalar modifier for ramping up spring constant
