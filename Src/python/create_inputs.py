@@ -23,7 +23,6 @@ def write_protein_sequences():
 def write_ligand_sequences(path, ligands):
     with open(path, 'w') as o:
         for l in ligands:
-            
             o.write("{0:d} {1:d} {2:d} {3:f}\n".format(*l))
 
 

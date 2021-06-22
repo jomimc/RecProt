@@ -198,7 +198,7 @@ def getD(grad, nij, d=2):
     return D
 
 
-def add_bonds(K, D, A, pc, lc, kstiff=10):
+def add_bonds(K, D, A, pc, kstiff=10):
     nij = getnij(pc)
 
     Nbold = len(K)
@@ -223,8 +223,7 @@ def get_H(K, D):
     return D.T.dot(K).dot(D)
 
 
-def entropy_diff(ecoord, clig, adj, smat, seq, kstiff=10):
-
+def entropy_diff(ecoord, adj, smat, seq, kstiff=10):
     K = getK(adj, smat, seq)
     nij = getnij(ecoord)
     grad = get_grad(adj)
@@ -235,7 +234,7 @@ def entropy_diff(ecoord, clig, adj, smat, seq, kstiff=10):
 #   p1 = np.product(val[:-3].real)
     p1 = np.product([v.real for v in val if v > 10**-5])
 
-    An, Gn, Kn, Dn = add_bonds(K, D, adj, ecoord, clig[0,0,3].reshape(3,2), kstiff=kstiff)
+    An, Gn, Kn, Dn = add_bonds(K, D, adj, ecoord, kstiff=kstiff)
     Hn = get_H(Kn, Dn)
     valn, vecn = np.linalg.eig(Hn)
 #   p2 = np.product(valn[:-3].real)
@@ -249,7 +248,7 @@ def get_smat(top):
     return np.array([[lo, mid], [mid, top]])
 
 
-def fromKtoeigval(adj, ecoord, clig, seq, kstiff=10):
+def fromKtoeigval(adj, ecoord, seq, kstiff=10):
     smax = 10.**np.linspace(0, 2, 30)
     meaneig = []
     ent = []
@@ -267,7 +266,7 @@ def fromKtoeigval(adj, ecoord, clig, seq, kstiff=10):
         p1 = np.product([v.real for v in val if v > 10**-6])
         ent.append(-0.5 * np.log(p1) + (1 + np.log(np.pi * 2)) * (len(val) - 3) / 2)
 
-        An, Gn, Kn, Dn = add_bonds(K, D, adj, ecoord, clig.reshape(3,2), kstiff=kstiff)
+        An, Gn, Kn, Dn = add_bonds(K, D, adj, ecoord, stiff=kstiff)
         Hn = get_H(Kn, Dn)
         valn, vecn = np.linalg.eig(Hn)
         p2 = np.product([v.real for v in valn if v > 10**-6])
