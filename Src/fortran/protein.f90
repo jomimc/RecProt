@@ -281,8 +281,8 @@ program energyprogram
 
   open(unit = 13, file = 'inputs/ligands.dat')
   do i = 1, nligand
-     read(13, *) lamino_strength(i,:), angles(i)  !! read the ligands
-!    read(13, *) lamino_strength(i,:), angles(i), lposx(i,:), lposy(i,:)  !! read the ligands
+!    read(13, *) lamino_strength(i,:), angles(i)  !! read the ligands
+     read(13, *) lamino_strength(i,:), angles(i), lposx(i,:), lposy(i,:)  !! read the ligands
      do j = 1, nbind
         if(lamino_strength(i,j) .ne. 1 .and. lamino_strength(i,j) .ne. 2) then
            print *, "inconsistent ligand data", curr_lig, j
@@ -298,14 +298,14 @@ program energyprogram
   !! ligand angles def - ligand1 - 0, ligand2 - pi/12, ligand3 - 2pi/12
   !! ligand4 - 3pi/12, ligand5 - 4pi/12, ligand6 - 5pi/12
 
-  do i = 1, nligand
-     lposy(i,1) = -1d0*sin(angles(i))
-     lposy(i,2)= 0
-     lposy(i,3)=-1d0*sin(angles(i))
-     lposx(i,1) = -1d0*cos(angles(i))
-     lposx(i,2) = 0
-     lposx(i,3) = 1d0*cos(angles(i))
-  enddo
+! do i = 1, nligand
+!    lposy(i,1) = -1d0*sin(angles(i))
+!    lposy(i,2)= 0
+!    lposy(i,3)=-1d0*sin(angles(i))
+!    lposx(i,1) = -1d0*cos(angles(i))
+!    lposx(i,2) = 0
+!    lposx(i,3) = 1d0*cos(angles(i))
+! enddo
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
