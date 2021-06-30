@@ -372,7 +372,7 @@ program energyprogram
   close(23)
 
 
-  if lstruct then
+  if (lstruct) then
     open(unit=50, file = 'inputs/prot_xy_local.dat') !! File with local configurations
   end if
 
@@ -398,7 +398,7 @@ program energyprogram
         amino_strength(aa) = amino_list(curr_prot, aa)
      enddo
 
-     if lstruct then
+     if (lstruct) then
        !! Read configuration variant
        read(50,*) x(:)  
        read(50,*) y(:)  
@@ -606,6 +606,7 @@ program energyprogram
      enddo ! curr_lig=1,nligand
   enddo ! curr_prot=1,nproteins
 
+  close(50)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
