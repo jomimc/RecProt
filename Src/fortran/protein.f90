@@ -61,7 +61,11 @@ program energyprogram
   real (kind=8) :: elm
 
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !! Program mode
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  logical :: lstruct
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !! More fixed parameters
@@ -164,6 +168,10 @@ program energyprogram
   read(11, *)  
   read(11, *) nbind
 
+  allocate( lposxnumber(nbind) )
+  read(11, *)  
+  read(11, *) lposxnumber(:)
+
   read(11, *)  
   read(11, *) ks
   read(11, *)  
@@ -181,6 +189,8 @@ program energyprogram
   read(11, *) els
   read(11, *)  
   read(11, *) elw
+  read(11, *)  
+  read(11, *) lstruct
   close(11)
 
   elm = (els + elw) / 2.0d0 
@@ -211,7 +221,7 @@ program energyprogram
   allocate( amino_list(nproteins,naa_color), amino_strength(naa_color) )
 
 
-  allocate( angles(nligand), lposy(nligand,nbind), lposx(nligand,nbind), lposxnumber(nbind) )
+  allocate( angles(nligand), lposx(nligand,nbind), lposy(nligand,nbind) )
   allocate( lamino_strength(nligand,nbind) )
 
   
@@ -233,9 +243,9 @@ program energyprogram
 
   ! ligand - protein interaction indices
 
-  lposxnumber(1)=2
-  lposxnumber(2)=7
-  lposxnumber(3)=3
+! lposxnumber(1)=2
+! lposxnumber(2)=7
+! lposxnumber(3)=3
   
   !! Create lists with protein-ligand link indices 
   do i = 1, nbind ! the 3 ligand binding sites
@@ -272,6 +282,7 @@ program energyprogram
   open(unit = 13, file = 'inputs/ligands.dat')
   do i = 1, nligand
      read(13, *) lamino_strength(i,:), angles(i)  !! read the ligands
+!    read(13, *) lamino_strength(i,:), angles(i), lposx(i,:), lposy(i,:)  !! read the ligands
      do j = 1, nbind
         if(lamino_strength(i,j) .ne. 1 .and. lamino_strength(i,j) .ne. 2) then
            print *, "inconsistent ligand data", curr_lig, j
@@ -361,6 +372,10 @@ program energyprogram
   close(23)
 
 
+  if lstruct then
+    open(unit=50, file = 'inputs/prot_xy_local.dat') !! File with local configurations
+  end if
+
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -383,6 +398,16 @@ program energyprogram
         amino_strength(aa) = amino_list(curr_prot, aa)
      enddo
 
+     if lstruct then
+       !! Read configuration variant
+       read(50,*) x(:)  
+       read(50,*) y(:)  
+       !! Set the equilibrium length based on the original coordinates
+       do i=1, plinks
+          length(i) = sqrt((x(plinks1(i)) - x(plinks2(i)))**2 + &
+          & (y(plinks1(i)) - y(plinks2(i)))**2)
+       enddo
+     end if
 
      do curr_lig = 1, nligand  !! loop over ligands
 
