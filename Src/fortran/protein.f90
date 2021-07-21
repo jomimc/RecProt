@@ -33,6 +33,8 @@ program energyprogram
   use imported
   implicit none
 
+  character(len=80) :: fmt0
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !! Important integers 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
@@ -285,12 +287,13 @@ program energyprogram
      read(13, *) lamino_strength(i,:), angles(i), lposx(i,:), lposy(i,:)  !! read the ligands
      do j = 1, nbind
         if(lamino_strength(i,j) .ne. 1 .and. lamino_strength(i,j) .ne. 2) then
-           print *, "inconsistent ligand data", curr_lig, j
+           print *, "inconsistent ligand data", i, j
            stop
         endif
       enddo
   enddo
   close(13)
+
 
   !! Convert ligand angles to positions
 
@@ -299,12 +302,12 @@ program energyprogram
   !! ligand4 - 3pi/12, ligand5 - 4pi/12, ligand6 - 5pi/12
 
 ! do i = 1, nligand
-!    lposy(i,1) = -1d0*sin(angles(i))
-!    lposy(i,2)= 0
-!    lposy(i,3)=-1d0*sin(angles(i))
 !    lposx(i,1) = -1d0*cos(angles(i))
 !    lposx(i,2) = 0
 !    lposx(i,3) = 1d0*cos(angles(i))
+!    lposy(i,1) = -1d0*sin(angles(i))
+!    lposy(i,2)= 0
+!    lposy(i,3)=-1d0*sin(angles(i))
 ! enddo
 
 
@@ -382,12 +385,8 @@ program energyprogram
 !!! the output file(s)
 ! call cpu_time(start)
 
-  open(unit=45, file="output.dat")
-  write(45,'(a155)') &
-       'protein, ligand, angle, lig coordinates(6(f6.3)),&
-       &protein no(i5),amino sequence(14(i1)),&
-       &total,deformation,chemical(3(f6.3)),protein coordinates(28(f6.3))'
-  write(45,'("els=",F06.2," elm=",F06.2," elw=",F06.2," ks=",F06.2," kw=",F06.2," kww=",F06.2)')  els,elm,elw,ks,kw,kww
+  open(unit=45, file="config.out")
+  open(unit=46, file="energy.out")
 
 
   !! looping over all proteins inside
@@ -494,8 +493,16 @@ program energyprogram
           do  i = 1, dimn
              if (mod(i,2) .eq. 0) then
                 nbd(i) = 2
-                lower(i)   = 0
-                upper(i)   = pi + 2d0 * angles(curr_lig)
+                if (int(i/2) == lposxnumber(1)) then
+                  lower(i)   = 0
+                  upper(i)   = 0.5 * pi + angles(curr_lig)
+                elseif (int(i/2) == lposxnumber(3)) then
+                  lower(i)   = 0.5 * pi + angles(curr_lig)
+                  upper(i)   = pi + 2d0 * angles(curr_lig)
+                else
+                  lower(i)   = 0
+                  upper(i)   = pi + 2d0 * angles(curr_lig)
+                endif
              else
                 nbd(i) = 1
                 lower(i)   = 0d0
@@ -590,9 +597,9 @@ program energyprogram
           call aaxy2polar(pc_cart, x0, y0, angles(curr_lig), pc_pol)
 
 
-           write(45,'(i7,i4,x,6(f6.3,x),x,16(i1),4(e18.10,x),26(f6.3,x))') &
-               curr_prot, curr_lig, lc_cart, amino_strength,&
-               &energy, def_energy, chem_energy, f, pc_cart
+!          write(fmt, 
+           write(45,'(*(f6.3,x))')  pc_cart
+           write(46,'(4(e18.10,x))') energy, def_energy, chem_energy, f
 
 
           !! Finished one protein-ligand combination
@@ -606,6 +613,8 @@ program energyprogram
      enddo ! curr_lig=1,nligand
   enddo ! curr_prot=1,nproteins
 
+  close(45)
+  close(46)
   close(50)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -708,8 +717,8 @@ contains
     integer*4 aa
 
     do aa = 1,namino
-        pc_pol(2*aa-1) = sqrt((pc_cart(2*aa-1)-x0)**2+(pc_cart(2*aa)-y0)**2)
-        pc_pol(2*aa) = atan2(pc_cart(2*aa)-y0,pc_cart(2*aa-1)-x0)+theta
+        pc_pol(2*aa-1) = sqrt((pc_cart(2*aa-1)-x0)**2 + (pc_cart(2*aa)-y0)**2)
+        pc_pol(2*aa) = atan2(pc_cart(2*aa) - y0, pc_cart(2*aa-1) - x0) + theta
 
         ! Make sure that angle is non-negative, since this is required
         ! by the constraint keeping the protein above the ligand
