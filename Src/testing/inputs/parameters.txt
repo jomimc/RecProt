@@ -1,19 +1,21 @@
 # Number of proteins :: nprot  :: Number of protein sequences
-10
+1
 # Protein size :: namino  :: Sequence length (N positions, and 3 binding sites)
 13
 # Protein bonds :: plinks  :: Number of internal protein bonds
 25
 # Number of ligands ::  nligand 
-2
+13
 # Ligand size ::  nbind
 3
+# Protein binding sites :: ibind :: Indices of protein binding sites
+2 7 3
 # Elastic energy :: ks  ::  energy constant for stiff springs
-10000
+10
 # Elastic energy :: kw  ::  energy constant for medium springs
-1000
+10
 # Elastic energy :: kww  ::  energy constant for weak springs
-100
+10
 # Elastic energy :: kstep  ::  number of iterations using different spring constants
 1
 # Elastic energy :: kmod  :: scalar modifier for ramping up spring constant
@@ -22,3 +24,11 @@
 2
 # Electrostatic energy :: elw  :: energy constant for weak chemical interaction
 1
+# Use local structure? :: lstruct  :: If no, all sequences have same structure
+T
+# Structure variation :: dr11  :: magnitude / direction of variation 
+0.2
+# Structure variation :: dr12  :: magnitude / direction of variation 
+0.0
+# Structure variation :: dr22  :: magnitude / direction of variation 
+0.0
