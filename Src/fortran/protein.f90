@@ -33,8 +33,6 @@ program energyprogram
   use imported
   implicit none
 
-  character(len=80) :: fmt0
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !! Important integers 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
@@ -64,10 +62,18 @@ program energyprogram
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !! local structural variation constants
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  real (kind=8) :: dr11, dr22, dr12, dr_table(2,2)
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !! Program mode
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   logical :: lstruct
+  logical :: ltranslation
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !! More fixed parameters
@@ -86,8 +92,7 @@ program energyprogram
   !! Coordinates arrays
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  real(8), dimension(:), allocatable :: x, y, pc_cart, pc_pol, pc_orig
-  real(8), dimension(:,:), allocatable ::  pc_init
+  real(8), dimension(:), allocatable :: x, y, pc_cart, pc_pol, pc_orig, pc_init
   real(8), dimension(:), allocatable :: lx, ly, lc_cart, lc_pol
 
 
@@ -193,10 +198,22 @@ program energyprogram
   read(11, *) elw
   read(11, *)  
   read(11, *) lstruct
+  read(11, *)  
+  read(11, *) dr11
+  read(11, *)  
+  read(11, *) dr12
+  read(11, *)  
+  read(11, *) dr22
+  read(11, *)  
+  read(11, *) ltranslation
   close(11)
 
   elm = (els + elw) / 2.0d0 
 
+  dr_table(1,1) = dr11
+  dr_table(1,2) = dr12
+  dr_table(2,1) = dr12
+  dr_table(2,2) = dr22
   
   llinks = nbind
   naa_color = namino + nbind
@@ -210,7 +227,7 @@ program energyprogram
   !! Allocate arrays
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  allocate( pc_cart(dimn), pc_pol(dimn), pc_orig(dimn), pc_init(nligand,dimn) )
+  allocate( pc_cart(dimn), pc_pol(dimn), pc_orig(dimn), pc_init(dimn) )
   allocate( lc_cart(2*nbind), lc_pol(2*nbind) )
 
   allocate( x(namino), y(namino) )
@@ -243,12 +260,6 @@ program energyprogram
   laatable(2, 2) = els
 
 
-  ! ligand - protein interaction indices
-
-! lposxnumber(1)=2
-! lposxnumber(2)=7
-! lposxnumber(3)=3
-  
   !! Create lists with protein-ligand link indices 
   do i = 1, nbind ! the 3 ligand binding sites
      llinks1(i) = lposxnumber(i)
@@ -269,13 +280,6 @@ program energyprogram
   enddo
   close(11)
 
-  !! reading the initial guess of the minimum-energy
-  !! protein configuration
-  open(unit = 12, file = 'inputs/prot_xy_init.dat')
-  do i = 1, nligand
-    read(12, *) pc_init(i,:)
-  enddo
-  close(12)
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -283,7 +287,6 @@ program energyprogram
 
   open(unit = 13, file = 'inputs/ligands.dat')
   do i = 1, nligand
-!    read(13, *) lamino_strength(i,:), angles(i)  !! read the ligands
      read(13, *) lamino_strength(i,:), angles(i), lposx(i,:), lposy(i,:)  !! read the ligands
      do j = 1, nbind
         if(lamino_strength(i,j) .ne. 1 .and. lamino_strength(i,j) .ne. 2) then
@@ -293,22 +296,6 @@ program energyprogram
       enddo
   enddo
   close(13)
-
-
-  !! Convert ligand angles to positions
-
-  !! shape of ligand with respect to horizontal 
-  !! ligand angles def - ligand1 - 0, ligand2 - pi/12, ligand3 - 2pi/12
-  !! ligand4 - 3pi/12, ligand5 - 4pi/12, ligand6 - 5pi/12
-
-! do i = 1, nligand
-!    lposx(i,1) = -1d0*cos(angles(i))
-!    lposx(i,2) = 0
-!    lposx(i,3) = 1d0*cos(angles(i))
-!    lposy(i,1) = -1d0*sin(angles(i))
-!    lposy(i,2)= 0
-!    lposy(i,3)=-1d0*sin(angles(i))
-! enddo
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -352,11 +339,6 @@ program energyprogram
   enddo
   close(20)
 
-  !! Set the equilibrium length based on the original coordinates
-  do i=1, plinks
-     length(i) = sqrt((x(plinks1(i)) - x(plinks2(i)))**2 + &
-     & (y(plinks1(i)) - y(plinks2(i)))**2)
-  enddo
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -376,7 +358,7 @@ program energyprogram
 
 
   if (lstruct) then
-    open(unit=50, file = 'inputs/prot_xy_local.dat') !! File with local configurations
+    open(unit=50, file='config_local.dat') !! File for saving local configurations
   end if
 
 
@@ -387,6 +369,7 @@ program energyprogram
 
   open(unit=45, file="config.out")
   open(unit=46, file="energy.out")
+  open(unit=47, file="config_init.dat") !! File for saving local configurations
 
 
   !! looping over all proteins inside
@@ -397,16 +380,48 @@ program energyprogram
         amino_strength(aa) = amino_list(curr_prot, aa)
      enddo
 
-     if (lstruct) then
-       !! Read configuration variant
-       read(50,*) x(:)  
-       read(50,*) y(:)  
+     pc_init(:) = pc_orig(:)
+
+!!!! Alternative way of linking structure to sequence.
+!!!! Did not work; can't remember the exact reason
+!    if (lstruct) then
+!      !! Update bond lengths according to interaction table
+!      call update_bond_lengths(namino, plinks, amino_list(curr_prot,:), plinks1, plinks2, length, dr_table)
+
+     else
        !! Set the equilibrium length based on the original coordinates
        do i=1, plinks
-          length(i) = sqrt((x(plinks1(i)) - x(plinks2(i)))**2 + &
-          & (y(plinks1(i)) - y(plinks2(i)))**2)
+           length(i) = sqrt((x(plinks1(i)) - x(plinks2(i)))**2 + &
+           & (y(plinks1(i)) - y(plinks2(i)))**2)
        enddo
+
      end if
+
+     if (lstruct) then
+
+         !! Update structure according to dr_table
+         call update_structure(dimn, namino, plinks, pc_orig, pc_init, amino_list(curr_prot,:), plinks1, plinks2, dr_table)
+
+         do i = 1, namino
+            x(i) = pc_init(i*2-1)
+            y(i) = pc_init(i*2)
+         end do
+
+         !! Set the equilibrium length based on the updated coordinates
+         do i=1, plinks
+            length(i) = sqrt((x(plinks1(i)) - x(plinks2(i)))**2 + &
+            & (y(plinks1(i)) - y(plinks2(i)))**2)
+         enddo
+
+         write(50,'(*(f6.3,x))')  pc_init
+
+     else
+
+!       pc_init(:) = pc_orig(:)
+
+!    end if
+
+    
 
      do curr_lig = 1, nligand  !! loop over ligands
 
@@ -417,8 +432,8 @@ program energyprogram
            lstrength(i) = laatable(j1, j2)
 
            ! Update ligand position
-           lc_cart(2*i-1) = lposx(curr_lig,i)!+ x(lposxnumber(2))
-           lc_cart(2*i) = lposy(curr_lig,i)!+ y(lposxnumber(1))
+           lc_cart(2*i-1) = lposx(curr_lig,i)
+           lc_cart(2*i) = lposy(curr_lig,i)
         enddo
         
 
@@ -436,7 +451,18 @@ program energyprogram
 
 
         !! initialize protein coordinates
-        pc_cart = pc_init(curr_lig,:)
+        pc_cart(:) = pc_init(:)
+
+        !! establish bounds on protein coordinates
+        call get_bounds(dimn, nbind, angles(curr_lig), lposxnumber, nbd, upper, lower)
+
+
+        !! Translate protein so that it almost overlaps with the ligand
+        if (ltranslation) then
+            call translation_step(dimn, pc_cart, lposxnumber, x0, y0, angles(curr_lig), lower, upper)
+        end if
+
+        write(47,'(*(f6.3,x))')  pc_cart
 
         !! Loop over spring constant steps
         do counter = 1, kstep
@@ -484,32 +510,8 @@ program energyprogram
           !     First set bounds on the odd-numbered variables.
           !! 
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!     minimization angles constrained between 0 and pi + 2 def
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          !! only restriction on angles
           !! "nbd = 1" means only a lower bound is used,
           !! "nbd = 2" means both lower and upper bounds are used
-          do  i = 1, dimn
-             if (mod(i,2) .eq. 0) then
-                nbd(i) = 2
-                if (int(i/2) == lposxnumber(1)) then
-                  lower(i)   = 0.5 * pi + angles(curr_lig)
-                  upper(i)   = pi + 2d0 * angles(curr_lig)
-                elseif (int(i/2) == lposxnumber(3)) then
-                  lower(i)   = 0
-                  upper(i)   = 0.5 * pi + angles(curr_lig)
-                else
-                  lower(i)   = 0
-                  upper(i)   = pi + 2d0 * angles(curr_lig)
-                endif
-             else
-                nbd(i) = 1
-                lower(i)   = 0d0
-                upper(i)   = 10d0
-             endif
-          enddo
-
 
           !! !     We now define the starting point.
           !!  
@@ -590,7 +592,7 @@ program energyprogram
           call aapolar2xy(pc_pol, x0, y0, angles(curr_lig), pc_cart)
 
           !! Calculate energy from initial guess
-          call aaxy2polar(pc_init(curr_lig,:), x0, y0, angles(curr_lig), pc_pol)
+          call aaxy2polar(pc_init, x0, y0, angles(curr_lig), pc_pol)
           call totalenergy(pc_pol, f)
 
           !! **redundant** return to the final pc_pol, just in case I forget about this
@@ -605,7 +607,6 @@ program energyprogram
           !! Finished one protein-ligand combination
 
         end do
-!       write(45,*)
 
 !       call cpu_time(finish)
 !       print '("Time = ",f20.1," seconds.")',finish-start
@@ -615,6 +616,7 @@ program energyprogram
 
   close(45)
   close(46)
+  close(47)
   close(50)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -755,6 +757,232 @@ contains
     enddo
 
   end subroutine aapolar2xy
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!     minimization angles constrained between 0 and pi + 2 def
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !! calculate boundaries
+  subroutine get_bounds(dimn, nbind, angle, lposxnumber, nbd, upper, lower)
+
+    implicit none
+    integer (kind=4), intent(in)::  dimn, nbind
+    real(8), intent(in) :: angle
+    integer(4), dimension(nbind), intent(in) ::  lposxnumber(:) 
+
+    real(8), dimension(dimn), intent(inout) :: upper, lower
+    integer(4), dimension(dimn), intent(inout) :: nbd
+
+          do  i = 1, dimn
+             if (mod(i,2) .eq. 0) then
+                nbd(i) = 2
+                if (int(i/2) == lposxnumber(1)) then
+                  lower(i)   = 0.5 * pi + angle
+                  upper(i)   = pi + 2d0 * angle
+                elseif (int(i/2) == lposxnumber(3)) then
+                  lower(i)   = 0
+                  upper(i)   = 0.5 * pi + angle
+                else
+                  lower(i)   = 0
+                  upper(i)   = pi + 2d0 * angle
+                endif
+             else
+                nbd(i) = 1
+                lower(i)   = 0d0
+                upper(i)   = 10d0
+             endif
+          enddo
+
+  end subroutine get_bounds
+
+  ! Optimize initial configuration by translating the entire protein
+  ! so that it almost overlaps with the ligand.
+  ! This is achieved using the same set of constraints that are needed
+  ! for the deformation optimization step, plus an additional constraint
+  ! which is needed in case theta = pi/2, to stop the ligand from going down indefinitely
+  subroutine translation_step(dimn, pc_cart, lposxnumber, x0, y0, theta, lower, upper)
+
+    implicit none
+
+    integer(4), intent(in) :: dimn 
+    real(8), intent(in):: x0, y0, theta
+    real(8), dimension(dimn), intent(in) :: upper, lower
+    real(8), dimension(dimn), intent(inout) :: pc_cart
+    integer(4), dimension(nbind), intent(in) ::  lposxnumber
+    
+    real(8) :: delta, dx, dy, pc_save(dimn), pc_pol(dimn)
+    integer(4) ::  i, j, c, reject, cnt
+    logical ::  accept
+    real(8), parameter :: delta0 = 0.2
+    integer(4), parameter :: steps = 5
+    integer(4), parameter :: maxcnt = 50
+
+    delta = delta0
+    c = 1
+    reject = 0
+
+
+    ! First Check constraints to make sure initial config is okay
+    accept = .true.
+    ! Angle constraints
+    call aaxy2polar(pc_cart, x0, y0, theta, pc_pol)
+    do j = 1, int(dimn / 2)
+        if (pc_pol(j*2) < lower(j*2)) then
+            accept = .false.
+        elseif (pc_pol(j*2) > upper(j*2)) then
+            accept = .false.
+        end if
+    end do
+    ! y-axis constraint
+    ! Central protein binding site cannot go below central ligand site
+    if (pc_cart(lposxnumber(2)*2) < y0) accept = .false.
+        
+    if (accept .eqv. .false.) then
+        dx = x0 - pc_cart(2*lposxnumber(2)-1)
+        dy = y0 - pc_cart(2*lposxnumber(1))
+        do j = 1, int(dimn / 2)
+            pc_cart(j*2-1) = pc_cart(j*2-1) + dx
+            pc_cart(j*2) = pc_cart(j*2) + dy
+        end do
+    end if
+
+
+    do i = 1, steps
+
+        ! Need to limit the number of times this can repeat,
+        ! as it is possible to reach a steady-state which endlessly
+        ! oscillates between left-to-right states
+
+        cnt = 0
+
+        do while ( (c < 4) .and. (cnt < maxcnt))
+
+            cnt = cnt + 1
+
+            pc_save(:) = pc_cart(:)
+
+            select case(c)
+            
+              ! Move downwards (y)
+              case(1)
+                do j = 1, int(dimn / 2)
+                    pc_cart(j*2) = pc_cart(j*2) - delta
+                end do
+
+              ! Move left (x)
+              case(2)
+                do j = 1, int(dimn / 2)
+                    pc_cart(j*2-1) = pc_cart(j*2-1) - delta
+                end do
+                ! After moving left, try downwards again
+                c = 1
+            
+              ! Move right (x)
+              case(3)
+                do j = 1, int(dimn / 2)
+                    pc_cart(j*2-1) = pc_cart(j*2-1) + delta
+                end do
+                ! After moving right, try downwards again
+                c = 1
+            
+            end select
+
+            ! Check constraints
+            accept = .true.
+            ! Angle constraints
+            call aaxy2polar(pc_cart, x0, y0, theta, pc_pol)
+            do j = 1, int(dimn / 2)
+                if (pc_pol(j*2) < lower(j*2)) then
+                    accept = .false.
+                elseif (pc_pol(j*2) > upper(j*2)) then
+                    accept = .false.
+                end if
+            end do
+            ! y-axis constraint
+            ! Central protein binding site cannot go below central ligand site
+            if (pc_cart(lposxnumber(2)*2) < y0) accept = .false.
+
+            if (accept) then
+                reject = 0
+            else
+                pc_cart(:) = pc_save(:)
+                reject = reject + 1
+                ! If "downwards" failed, then try "left"
+                if (reject == 1) then
+                    c = 2
+                ! If "left" also failed, then try "right"
+                elseif (reject == 2) then
+                    c = 3
+                ! If "right" also failed, then end loop
+                elseif (reject == 3) then
+                    c = 4
+                end if
+            end if
+
+        end do
+
+        delta = delta * 0.5d0
+
+    end do
+
+
+  end subroutine translation_step
+
+
+!!! Update the equilibrium structure according to amino acid sequence
+  subroutine update_structure(dimn, namino, plinks, pc_orig, pc_cart, seq, plinks1, plinks2, table)
+
+    implicit none
+
+    integer(4), intent(in) :: dimn, namino, plinks
+    integer(4), dimension(namino), intent(in) :: seq
+    integer(4), dimension(plinks), intent(in) :: plinks1, plinks2
+    real(8), dimension(dimn), intent(in) :: pc_orig
+    real(8), dimension(dimn), intent(inout) :: pc_cart
+    real(8), dimension(2,2), intent(in) :: table
+
+    integer(4) ::  i, j, k
+    real(8) :: vec(dimn), vec0(2)
+
+    vec(:) = 0.0d0
+    vec0(:) = 0.0d0
+
+    do i = 1, plinks
+        j = plinks1(i)
+        k = plinks2(i)
+        vec0 = (pc_orig(k*2-1:k*2) - pc_orig(j*2-1:j*2)) * table(seq(j), seq(k))
+        vec(j*2-1:j*2) = vec(j*2-1:j*2) + vec0
+        vec(k*2-1:k*2) = vec(k*2-1:k*2) - vec0
+    end do
+
+    pc_cart(:) = pc_orig(:) + vec(:)
+
+
+  end subroutine update_structure
+
+
+!!! Update the equilibrium bond lengths according to sequence
+!!! Not used in final results
+  subroutine update_bond_lengths(namino, plinks, seq, plinks1, plinks2, length, table)
+
+    implicit none
+
+    integer(4), intent(in) :: namino, plinks
+    integer(4), dimension(namino), intent(in) :: seq
+    integer(4), dimension(plinks), intent(in) :: plinks1, plinks2
+    real(8), dimension(plinks), intent(inout) :: length
+    real(8), dimension(2,2), intent(in) :: table
+
+    integer(4) ::  i, j, k
+
+    do i = 1, plinks
+        j = plinks1(i)
+        k = plinks2(i)
+        length(i) = 1.0d0 + table(seq(j), seq(k))
+    end do
+
+  end subroutine update_bond_lengths
+
+
 
 end program energyprogram
 
