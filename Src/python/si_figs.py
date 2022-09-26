@@ -24,14 +24,9 @@ from scipy.spatial.distance import cdist
 from scipy.stats import linregress, pearsonr
 import seaborn as sns
 
-#mport angle_test as AT
-import new_figs
-#mport rec_io
-#mport rec_utils as utils
-
+import main_figs
 import local_utils as utils
 
-sys.path.insert(5, '/molahome/jmcbride/RecProt/Src/python_old/')
 import rec_utils
 import get_entropy as GE
 
@@ -60,8 +55,8 @@ def fig1(df2, ec, ID='w2h1', cmap=Vik_6, ft=10):
 
     idx_list = [df.index, (df.gap>3.60), (df.gap>3.800)]
     for i, idx in enumerate(idx_list):
-        new_figs.plot_best_df(df, idx, fig=fig, ax=[0,ax[i]], cbar=False, side=[1], lig=False, cmap=cmap.mpl_colormap)
-        new_figs.plot_covariance(df, idx, fig=fig, ax=ax[3+i], ft=ft)
+        main_figs.plot_best_df(df, idx, fig=fig, ax=[0,ax[i]], cbar=False, side=[1], lig=False, cmap=cmap.mpl_colormap)
+        main_figs.plot_covariance(df, idx, fig=fig, ax=ax[3+i], ft=ft)
 
     for a in ax[:3]:# + ax[6:]:
         for direction in ['left', 'right', 'top', 'bottom']:
@@ -279,7 +274,7 @@ def bootstrap_cov(ec, seq, n_seq, n_rep=1000):
     X = sorted(set(D))
     cov_mean = []
     for i in range(n_rep):
-        cov = new_figs.get_seq_covariance(seq[np.random.choice(range(len(seq)), replace=False, size=n_seq)])[tri_idx]
+        cov = main_figs.get_seq_covariance(seq[np.random.choice(range(len(seq)), replace=False, size=n_seq)])[tri_idx]
         cov_mean.append([np.nanmean(cov[D==d]) for d in X])
     return np.array(cov_mean)
 
@@ -304,7 +299,7 @@ def plot_cov_vs_dist(df2, seq_all, ec):
 
     for i, idx in enumerate(idx_list):
         ax[i].plot(xlim, [0]*2, '-k', alpha=0.5)
-        cov = new_figs.get_seq_covariance(np.array(list(df.loc[idx, 'pseq'])))[tri_idx]
+        cov = main_figs.get_seq_covariance(np.array(list(df.loc[idx, 'pseq'])))[tri_idx]
         N = np.sum(idx)
 
         boot_path = PATH_DATA.joinpath(f"ran_cov_boot_{i}.npy")
@@ -457,19 +452,19 @@ def spec_aff_def(base=PATH_BASE, ds=5.5, e=8, it=12, fig='', ax='', ft=14, km=22
     ce2 = 'k'
     X = np.arange(km)
     Y = np.argmax(gap1, axis=1)[::-1]
-    new_figs.plot_optimal_line(ax[1], X, Y, 9, ce1)
-    [new_figs.plot_optimal_line(ax[i], X, Y, 9, ce1, offset=11) for i in [0,3]]
-    [new_figs.plot_optimal_line(ax[i], X, Y, 9, ce2, offset=13, p=':') for i in [0,3]]
+    main_figs.plot_optimal_line(ax[1], X, Y, 9, ce1)
+    [main_figs.plot_optimal_line(ax[i], X, Y, 9, ce1, offset=11) for i in [0,3]]
+    [main_figs.plot_optimal_line(ax[i], X, Y, 9, ce2, offset=13, p=':') for i in [0,3]]
 
     Y = np.argmax(gap2, axis=1)[::-1]
-    new_figs.plot_optimal_line(ax[2], X, Y, 0, ce1)
-    [new_figs.plot_optimal_line(ax[i], X, Y, 0, ce1, offset=2) for i in [0,3]]
-    [new_figs.plot_optimal_line(ax[i], X, Y, 0, ce2, offset=0, p=':') for i in [0,3]]
+    main_figs.plot_optimal_line(ax[2], X, Y, 0, ce1)
+    [main_figs.plot_optimal_line(ax[i], X, Y, 0, ce1, offset=2) for i in [0,3]]
+    [main_figs.plot_optimal_line(ax[i], X, Y, 0, ce2, offset=0, p=':') for i in [0,3]]
 
     # Plot line of optimal mismatch for given flexbility for higher energy (e=16)
     i = 79
     ener = np.load(base.joinpath(f"{i:03d}", "energy.dat.npy"))[:,:,0]
-    ener = new_figs.update_energy(ener[:km,:], ang, Earr[i])#/ e
+    ener = main_figs.update_energy(ener[:km,:], ang, Earr[i])#/ e
     gap1 = np.abs(ener[:,23:-2] - ener[:,25:])
     gap2 = np.abs(ener[:,14:24] - ener[:,12:22])
 
@@ -604,10 +599,10 @@ def spec_aff_de(base=PATH_BASE, de=1, ds=5.5, e=8, it=12, fig='', ax='', ft=14, 
     j = np.argmin(np.abs(Earr - (e-de)))
 
     ener = np.load(base.joinpath(f"{i:03d}", "energy.dat.npy"))[:,:,0]
-    ener1 = new_figs.update_energy(ener[:km,:], ang, Earr[i])#/ e
+    ener1 = main_figs.update_energy(ener[:km,:], ang, Earr[i])#/ e
 
     ener = np.load(base.joinpath(f"{j:03d}", "energy.dat.npy"))[:,:,0]
-    ener2 = new_figs.update_energy(ener[:km,:], ang, Earr[j])#/ e
+    ener2 = main_figs.update_energy(ener[:km,:], ang, Earr[j])#/ e
 
     gap = ener2[:,14:-2] - ener1[:,14:-2]
     ener1 = ener1[:,12:]
@@ -628,12 +623,12 @@ def spec_aff_de(base=PATH_BASE, de=1, ds=5.5, e=8, it=12, fig='', ax='', ft=14, 
 #   ce1 = 'k'
 #   X = np.arange(km)
 #   Y = np.argmax(gap, axis=1)[::-1]
-#   new_figs.plot_optimal_line(ax[0], X, Y, 9, ce1, offset=11)
-#   new_figs.plot_optimal_line(ax[1], X, Y, 9, ce1)
+#   main_figs.plot_optimal_line(ax[0], X, Y, 9, ce1, offset=11)
+#   main_figs.plot_optimal_line(ax[1], X, Y, 9, ce1)
 
 #   Y = np.argmax(gap2, axis=1)[::-1]
-#   new_figs.plot_optimal_line(ax[0], X, Y, 0, ce1, offset=2)
-#   new_figs.plot_optimal_line(ax[2], X, Y, 0, ce1)
+#   main_figs.plot_optimal_line(ax[0], X, Y, 0, ce1, offset=2)
+#   main_figs.plot_optimal_line(ax[2], X, Y, 0, ce1)
 
 
     # Add colorbar
@@ -847,7 +842,7 @@ def spec_vs_e(base=PATH_BASE, ds=0.0, e=8, it=12, fig='', ax='', cax='', ft=14, 
 
         i = np.argmin(np.abs(Earr - e))
         ener = np.load(base.joinpath(f"{i:03d}", "energy.dat.npy"))[:,:,0]
-        ener = new_figs.update_energy(ener[:km,:], ang, Earr[i])#/ e
+        ener = main_figs.update_energy(ener[:km,:], ang, Earr[i])#/ e
 
         gap1 = np.abs(ener[:,23:-2] - ener[:,25:])
         gap2 = np.abs(ener[:,14:24] - ener[:,12:22])
