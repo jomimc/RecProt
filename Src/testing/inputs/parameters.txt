@@ -27,8 +27,10 @@
 # Use local structure? :: lstruct  :: If no, all sequences have same structure
 T
 # Structure variation :: dr11  :: magnitude / direction of variation 
-0.2
+0.3
 # Structure variation :: dr12  :: magnitude / direction of variation 
-0.0
+0.1
 # Structure variation :: dr22  :: magnitude / direction of variation 
-0.0
+0.2
+# Translation step
+T
